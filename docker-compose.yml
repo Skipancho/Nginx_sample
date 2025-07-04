@@ -1,0 +1,64 @@
+services:
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/templates:/etc/nginx/templates
+      - ./.cert:/etc/nginx/certs
+    ports:
+      - "443:443"
+      - "80:80"
+
+    depends_on:
+      - test_client
+    networks:
+      - test-network
+
+  test_client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: test_client
+    # env_file:
+    #   - .env
+    volumes:
+      - ./client:/src
+    ports:
+      - "3000:3000"
+    networks:
+      - test-network
+
+  test_server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: test_server
+    # env_file:
+    #   - .env
+    volumes:
+      - ./server:/src
+    ports:
+      - "8080:8080"
+    networks:
+      - test-network
+
+  postgresql-master:
+    container_name: test_postgresql-master
+    image: postgres:latest
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}  # Set a strong password
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRESQL_PGAUDIT_LOG=READ,WRITE
+      - POSTGRESQL_LOG_HOSTNAME=true
+      - POSTGRESQL_DATABASE=${POSTGRES_DB}
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge
